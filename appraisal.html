@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Appraisal Master Tool</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; display: flex; justify-content: center; padding: 20px; background-color: #f4f7f9; }
+        .card { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.1); width: 450px; }
+        h2 { margin: 0 0 20px 0; color: #1a73e8; text-align: center; font-size: 1.4rem; }
+        
+        .tab-container { display: flex; margin-bottom: 20px; background: #eee; border-radius: 8px; padding: 4px; }
+        .tab { flex: 1; text-align: center; padding: 10px; cursor: pointer; border-radius: 6px; font-weight: bold; color: #555; transition: 0.3s; }
+        .tab.active { background: white; color: #1a73e8; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+
+        .section-label { font-size: 0.75rem; font-weight: bold; color: #999; text-transform: uppercase; margin-bottom: 10px; display: block; }
+        .input-box { background: #fdfdfd; padding: 15px; border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 15px; }
+        
+        .input-group { margin-bottom: 1rem; }
+        label { display: block; margin-bottom: 0.3rem; font-size: 0.85rem; font-weight: 600; color: #444; }
+        input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 1rem; }
+        input:focus { border-color: #1a73e8; outline: none; box-shadow: 0 0 0 3px rgba(26,115,232,0.1); }
+        
+        .result-box { background: #1a73e8; color: white; padding: 20px; border-radius: 8px; text-align: center; margin-top: 10px; }
+        .res-main { font-size: 2.2rem; font-weight: bold; display: block; }
+        .res-sub { font-size: 0.9rem; opacity: 0.9; margin-bottom: 5px; display: block; }
+        .row { display: flex; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.2); font-size: 0.95rem; }
+        .hidden { display: none; }
+        .accent-text { color: #1a73e8; font-weight: bold; text-align: center; display: block; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>Appraisal Master</h2>
+
+    <div class="tab-container">
+        <div id="tabPlan" class="tab active" onclick="switchMode('plan')">Plan Hike</div>
+        <div id="tabAnalyze" class="tab" onclick="switchMode('analyze')">Analyze Hike</div>
+    </div>
+
+    <span class="section-label">Current Salary</span>
+    <div class="input-box">
+        <div class="input-group">
+            <label>Annual CTC</label>
+            <input type="number" id="oldAnnual" placeholder="e.g. 524000" oninput="sync('old', 'annual')">
+        </div>
+        <div class="input-group" style="margin-bottom:0;">
+            <label>Monthly In-Hand</label>
+            <input type="number" id="oldMonthly" placeholder="e.g. 39666" oninput="sync('old', 'monthly')">
+        </div>
+    </div>
+
+    <div id="planUI">
+        <span class="section-label">Target Increase</span>
+        <div class="input-box" style="border-color: #1a73e8;">
+            <div class="input-group" style="margin-bottom:0;">
+                <label>Expected Hike %</label>
+                <input type="number" id="hikeInput" value="15" oninput="calculateFromPercent()">
+            </div>
+        </div>
+    </div>
+
+    <div id="analyzeUI" class="hidden">
+        <span class="section-label">New Salary to Compare</span>
+        <div class="input-box" style="border-color: #1a73e8;">
+            <div class="input-group">
+                <label>New Annual CTC</label>
+                <input type="number" id="newAnnual" placeholder="Enter new annual" oninput="sync('new', 'annual')">
+            </div>
+            <div class="input-group" style="margin-bottom:0;">
+                <label>New Monthly In-Hand</label>
+                <input type="number" id="newMonthly" placeholder="Enter new monthly" oninput="sync('new', 'monthly')">
+            </div>
+        </div>
+    </div>
+
+    <div class="result-box">
+        <span id="resLabel" class="res-sub">Projected Hike Percentage</span>
+        <span id="resPercent" class="res-main">0%</span>
+        
+        <div class="row">
+            <span>New Annual CTC:</span>
+            <span id="dispAnnual" style="font-weight:bold;">₹0</span>
+        </div>
+        <div class="row">
+            <span>New Monthly In-Hand:</span>
+            <span id="dispMonthly" style="font-weight:bold;">₹0</span>
+        </div>
+    </div>
+</div>
+
+<script>
+    let mode = 'plan';
+    const DEDUCTION = 4000;
+
+    function switchMode(m) {
+        mode = m;
+        document.getElementById('tabPlan').classList.toggle('active', mode === 'plan');
+        document.getElementById('tabAnalyze').classList.toggle('active', mode === 'analyze');
+        document.getElementById('planUI').classList.toggle('hidden', mode === 'analyze');
+        document.getElementById('analyzeUI').classList.toggle('hidden', mode === 'plan');
+        document.getElementById('resLabel').innerText = mode === 'plan' ? 'Projected Hike Percentage' : 'Actual Hike Percentage';
+        
+        if(mode === 'plan') calculateFromPercent();
+        else calculateFinal();
+    }
+
+    function sync(type, field) {
+        const annualId = type + 'Annual';
+        const monthlyId = type + 'Monthly';
+        let annualVal = parseFloat(document.getElementById(annualId).value) || 0;
+        let monthlyVal = parseFloat(document.getElementById(monthlyId).value) || 0;
+
+        if (field === 'annual') {
+            monthlyVal = (annualVal / 12) - DEDUCTION;
+            document.getElementById(monthlyId).value = Math.round(monthlyVal) || '';
+        } else {
+            annualVal = (monthlyVal + DEDUCTION) * 12;
+            document.getElementById(annualId).value = Math.round(annualVal) || '';
+        }
+
+        if(mode === 'plan') calculateFromPercent();
+        else calculateFinal();
+    }
+
+    function calculateFromPercent() {
+        const oldA = parseFloat(document.getElementById('oldAnnual').value) || 0;
+        const hikePct = parseFloat(document.getElementById('hikeInput').value) || 0;
+        
+        const newA = oldA * (1 + (hikePct / 100));
+        const newM = (newA / 12) - DEDUCTION;
+
+        // Update the "New Salary" inputs silently for the other tab
+        document.getElementById('newAnnual').value = Math.round(newA);
+        document.getElementById('newMonthly').value = Math.round(newM);
+
+        updateDisplay(hikePct, newA, newM);
+    }
+
+    function calculateFinal() {
+        const oldA = parseFloat(document.getElementById('oldAnnual').value) || 0;
+        const newA = parseFloat(document.getElementById('newAnnual').value) || 0;
+        const newM = parseFloat(document.getElementById('newMonthly').value) || 0;
+
+        let hikePct = oldA > 0 ? ((newA - oldA) / oldA) * 100 : 0;
+        updateDisplay(hikePct, newA, newM);
+    }
+
+    function updateDisplay(pct, annual, monthly) {
+        document.getElementById('resPercent').innerText = pct.toFixed(2) + "%";
+        document.getElementById('dispAnnual').innerText = "₹" + Math.round(annual).toLocaleString('en-IN');
+        document.getElementById('dispMonthly').innerText = "₹" + Math.round(monthly > 0 ? monthly : 0).toLocaleString('en-IN');
+    }
+</script>
+
+</body>
+</html>
