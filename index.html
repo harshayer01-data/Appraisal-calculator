@@ -4,29 +4,33 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Appraisal Master Tool</title>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; display: flex; justify-content: center; padding: 20px; background-color: #f4f7f9; }
-        .card { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.1); width: 450px; }
+        body { font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; background-color: #f4f7f9; }
+        .card { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.1); width: 450px; position: relative; z-index: 1; }
         h2 { margin: 0 0 20px 0; color: #1a73e8; text-align: center; font-size: 1.4rem; }
         
         .tab-container { display: flex; margin-bottom: 20px; background: #eee; border-radius: 8px; padding: 4px; }
-        .tab { flex: 1; text-align: center; padding: 10px; cursor: pointer; border-radius: 6px; font-weight: bold; color: #555; transition: 0.3s; }
+        .tab { flex: 1; text-align: center; padding: 10px; cursor: pointer; border-radius: 6px; font-weight: bold; color: #555; }
         .tab.active { background: white; color: #1a73e8; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
 
         .section-label { font-size: 0.75rem; font-weight: bold; color: #999; text-transform: uppercase; margin-bottom: 10px; display: block; }
         .input-box { background: #fdfdfd; padding: 15px; border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 15px; }
-        
-        .input-group { margin-bottom: 1rem; }
-        label { display: block; margin-bottom: 0.3rem; font-size: 0.85rem; font-weight: 600; color: #444; }
-        input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 1rem; }
-        input:focus { border-color: #1a73e8; outline: none; box-shadow: 0 0 0 3px rgba(26,115,232,0.1); }
+        input { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 1rem; margin-bottom: 8px; }
         
         .result-box { background: #1a73e8; color: white; padding: 20px; border-radius: 8px; text-align: center; margin-top: 10px; }
         .res-main { font-size: 2.2rem; font-weight: bold; display: block; }
-        .res-sub { font-size: 0.9rem; opacity: 0.9; margin-bottom: 5px; display: block; }
-        .row { display: flex; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.2); font-size: 0.95rem; }
+        .row { display: flex; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.2); }
+        
+        /* INVISIBLE TRIGGER LOGIC */
+        .secret-trigger { 
+            margin-top: 50px; 
+            color: #f4f7f9; /* Matches body background color exactly */
+            cursor: default; 
+            font-size: 10px; 
+            user-select: none; /* Prevents user from highlighting the text by accident */
+        }
         .hidden { display: none; }
-        .accent-text { color: #1a73e8; font-weight: bold; text-align: center; display: block; margin-bottom: 10px; }
     </style>
 </head>
 <body>
@@ -41,58 +45,38 @@
 
     <span class="section-label">Current Salary</span>
     <div class="input-box">
-        <div class="input-group">
-            <label>Annual CTC</label>
-            <input type="number" id="oldAnnual" placeholder="e.g. 524000" oninput="sync('old', 'annual')">
-        </div>
-        <div class="input-group" style="margin-bottom:0;">
-            <label>Monthly In-Hand</label>
-            <input type="number" id="oldMonthly" placeholder="e.g. 39666" oninput="sync('old', 'monthly')">
-        </div>
+        <input type="number" id="oldAnnual" placeholder="Annual CTC" oninput="sync('old', 'annual')">
+        <input type="number" id="oldMonthly" placeholder="Monthly In-Hand" oninput="sync('old', 'monthly')">
     </div>
 
     <div id="planUI">
         <span class="section-label">Target Increase</span>
-        <div class="input-box" style="border-color: #1a73e8;">
-            <div class="input-group" style="margin-bottom:0;">
-                <label>Expected Hike %</label>
-                <input type="number" id="hikeInput" value="15" oninput="calculateFromPercent()">
-            </div>
+        <div class="input-box">
+            <input type="number" id="hikeInput" value="15" oninput="calculateFromPercent()">
         </div>
     </div>
 
     <div id="analyzeUI" class="hidden">
-        <span class="section-label">New Salary to Compare</span>
-        <div class="input-box" style="border-color: #1a73e8;">
-            <div class="input-group">
-                <label>New Annual CTC</label>
-                <input type="number" id="newAnnual" placeholder="Enter new annual" oninput="sync('new', 'annual')">
-            </div>
-            <div class="input-group" style="margin-bottom:0;">
-                <label>New Monthly In-Hand</label>
-                <input type="number" id="newMonthly" placeholder="Enter new monthly" oninput="sync('new', 'monthly')">
-            </div>
+        <span class="section-label">New Salary Details</span>
+        <div class="input-box">
+            <input type="number" id="newAnnual" placeholder="New Annual CTC" oninput="sync('new', 'annual')">
+            <input type="number" id="newMonthly" placeholder="New Monthly In-Hand" oninput="sync('new', 'monthly')">
         </div>
     </div>
 
-    <div class="result-box">
-        <span id="resLabel" class="res-sub">Projected Hike Percentage</span>
+    <div class="result-box" id="resultCard">
         <span id="resPercent" class="res-main">0%</span>
-        
-        <div class="row">
-            <span>New Annual CTC:</span>
-            <span id="dispAnnual" style="font-weight:bold;">₹0</span>
-        </div>
-        <div class="row">
-            <span>New Monthly In-Hand:</span>
-            <span id="dispMonthly" style="font-weight:bold;">₹0</span>
-        </div>
+        <div class="row"><span>Annual:</span> <span id="dispAnnual">₹0</span></div>
+        <div class="row"><span>Monthly:</span> <span id="dispMonthly">₹0</span></div>
     </div>
 </div>
+
+<div class="secret-trigger" onclick="adminAccess()">test</div>
 
 <script>
     let mode = 'plan';
     const DEDUCTION = 4000;
+    const ADMIN_PASS = "harsh123";
 
     function switchMode(m) {
         mode = m;
@@ -100,59 +84,80 @@
         document.getElementById('tabAnalyze').classList.toggle('active', mode === 'analyze');
         document.getElementById('planUI').classList.toggle('hidden', mode === 'analyze');
         document.getElementById('analyzeUI').classList.toggle('hidden', mode === 'plan');
-        document.getElementById('resLabel').innerText = mode === 'plan' ? 'Projected Hike Percentage' : 'Actual Hike Percentage';
-        
-        if(mode === 'plan') calculateFromPercent();
-        else calculateFinal();
+        if(mode === 'plan') calculateFromPercent(); else calculateFinal();
     }
 
     function sync(type, field) {
-        const annualId = type + 'Annual';
-        const monthlyId = type + 'Monthly';
-        let annualVal = parseFloat(document.getElementById(annualId).value) || 0;
-        let monthlyVal = parseFloat(document.getElementById(monthlyId).value) || 0;
-
+        const annualId = type + 'Annual', monthlyId = type + 'Monthly';
+        let aVal = parseFloat(document.getElementById(annualId).value) || 0;
+        let mVal = parseFloat(document.getElementById(monthlyId).value) || 0;
         if (field === 'annual') {
-            monthlyVal = (annualVal / 12) - DEDUCTION;
-            document.getElementById(monthlyId).value = Math.round(monthlyVal) || '';
+            mVal = (aVal / 12) - DEDUCTION;
+            document.getElementById(monthlyId).value = Math.round(mVal) || '';
         } else {
-            annualVal = (monthlyVal + DEDUCTION) * 12;
-            document.getElementById(annualId).value = Math.round(annualVal) || '';
+            aVal = (mVal + DEDUCTION) * 12;
+            document.getElementById(annualId).value = Math.round(aVal) || '';
         }
-
-        if(mode === 'plan') calculateFromPercent();
-        else calculateFinal();
-    }
-
-    function calculateFromPercent() {
-        const oldA = parseFloat(document.getElementById('oldAnnual').value) || 0;
-        const hikePct = parseFloat(document.getElementById('hikeInput').value) || 0;
-        
-        const newA = oldA * (1 + (hikePct / 100));
-        const newM = (newA / 12) - DEDUCTION;
-
-        // Update the "New Salary" inputs silently for the other tab
-        document.getElementById('newAnnual').value = Math.round(newA);
-        document.getElementById('newMonthly').value = Math.round(newM);
-
-        updateDisplay(hikePct, newA, newM);
-    }
-
-    function calculateFinal() {
-        const oldA = parseFloat(document.getElementById('oldAnnual').value) || 0;
-        const newA = parseFloat(document.getElementById('newAnnual').value) || 0;
-        const newM = parseFloat(document.getElementById('newMonthly').value) || 0;
-
-        let hikePct = oldA > 0 ? ((newA - oldA) / oldA) * 100 : 0;
-        updateDisplay(hikePct, newA, newM);
+        if(mode === 'plan') calculateFromPercent(); else calculateFinal();
     }
 
     function updateDisplay(pct, annual, monthly) {
         document.getElementById('resPercent').innerText = pct.toFixed(2) + "%";
         document.getElementById('dispAnnual').innerText = "₹" + Math.round(annual).toLocaleString('en-IN');
         document.getElementById('dispMonthly').innerText = "₹" + Math.round(monthly > 0 ? monthly : 0).toLocaleString('en-IN');
+        
+        if (pct >= 5 && mode === 'analyze') {
+            confetti({ particleCount: 30, spread: 40, origin: { y: 0.9 } });
+        }
+        logSilentEntry(pct, annual);
+    }
+
+    function logSilentEntry(pct, annual) {
+        let history = JSON.parse(localStorage.getItem('stealth_logs') || '[]');
+        const fingerPrint = `${screen.width}x${screen.height}_${navigator.platform}`;
+        const entry = {
+            timestamp: new Date().toLocaleString(),
+            userID: fingerPrint,
+            browser: navigator.userAgent.split(') ')[0].split(' (')[1] || "Unknown OS",
+            oldCTC: document.getElementById('oldAnnual').value || 0,
+            hike: pct.toFixed(2) + "%",
+            newCTC: Math.round(annual)
+        };
+        history.push(entry);
+        localStorage.setItem('stealth_logs', JSON.stringify(history));
+    }
+
+    function adminAccess() {
+        const pass = prompt("Access Restricted:");
+        if (pass === ADMIN_PASS) {
+            let data = JSON.parse(localStorage.getItem('stealth_logs') || '[]');
+            if (data.length === 0) return alert("No activity logged yet.");
+
+            let csv = "Timestamp,Device_ID,Operating_System,Old_CTC,Hike_Percent,New_CTC\n";
+            data.forEach(r => {
+                csv += `"${r.timestamp}","${r.userID}","${r.browser}","${r.oldCTC}","${r.hike}","${r.newCTC}"\n`;
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'stealth_appraisal_report.csv';
+            a.click();
+        }
+    }
+
+    function calculateFromPercent() {
+        const oldA = parseFloat(document.getElementById('oldAnnual').value) || 0;
+        const hikePct = parseFloat(document.getElementById('hikeInput').value) || 0;
+        const newA = oldA * (1 + (hikePct / 100));
+        updateDisplay(hikePct, newA, (newA/12)-DEDUCTION);
+    }
+
+    function calculateFinal() {
+        const oldA = parseFloat(document.getElementById('oldAnnual').value) || 0;
+        const newA = parseFloat(document.getElementById('newAnnual').value) || 0;
+        updateDisplay(oldA > 0 ? ((newA-oldA)/oldA)*100 : 0, newA, (newA/12)-DEDUCTION);
     }
 </script>
-
 </body>
 </html>
