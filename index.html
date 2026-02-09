@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Appraisal Master Tool</title>
+    <title>Appraisal Master Tool Pro</title>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
         body { font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; background-color: #f4f7f9; }
@@ -11,7 +11,7 @@
         h2 { margin: 0 0 20px 0; color: #1a73e8; text-align: center; font-size: 1.4rem; }
         
         .tab-container { display: flex; margin-bottom: 20px; background: #eee; border-radius: 8px; padding: 4px; }
-        .tab { flex: 1; text-align: center; padding: 10px; cursor: pointer; border-radius: 6px; font-weight: bold; color: #555; }
+        .tab { flex: 1; text-align: center; padding: 10px; cursor: pointer; border-radius: 6px; font-weight: bold; color: #555; font-size: 0.75rem; transition: 0.3s; }
         .tab.active { background: white; color: #1a73e8; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
 
         .section-label { font-size: 0.75rem; font-weight: bold; color: #999; text-transform: uppercase; margin-bottom: 10px; display: block; }
@@ -21,16 +21,11 @@
         .result-box { background: #1a73e8; color: white; padding: 20px; border-radius: 8px; text-align: center; margin-top: 10px; }
         .res-main { font-size: 2.2rem; font-weight: bold; display: block; }
         .row { display: flex; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.2); }
+        .deduction-note { font-size: 0.7rem; opacity: 0.8; text-align: left; margin-top: -5px; margin-bottom: 10px; display: block; color: #666; }
+        .bonus-text { font-size: 0.8rem; opacity: 0.9; margin-top: 5px; display: block; }
         
-        /* INVISIBLE TRIGGER LOGIC */
-        .secret-trigger { 
-            margin-top: 50px; 
-            color: #f4f7f9; /* Matches body background color exactly */
-            cursor: default; 
-            font-size: 10px; 
-            user-select: none; /* Prevents user from highlighting the text by accident */
-        }
         .hidden { display: none; }
+        .secret-trigger { margin-top: 50px; color: #f4f7f9; cursor: default; font-size: 10px; user-select: none; }
     </style>
 </head>
 <body>
@@ -40,17 +35,20 @@
 
     <div class="tab-container">
         <div id="tabPlan" class="tab active" onclick="switchMode('plan')">Plan Hike</div>
-        <div id="tabAnalyze" class="tab" onclick="switchMode('analyze')">Analyze Hike</div>
+        <div id="tabAnalyze" class="tab" onclick="switchMode('analyze')">Analyze</div>
+        <div id="tabMonth" class="tab" onclick="switchMode('month')">Month Calc</div>
     </div>
 
-    <span class="section-label">Current Salary</span>
-    <div class="input-box">
-        <input type="number" id="oldAnnual" placeholder="Annual CTC" oninput="sync('old', 'annual')">
-        <input type="number" id="oldMonthly" placeholder="Monthly In-Hand" oninput="sync('old', 'monthly')">
+    <div id="salaryInputs">
+        <span class="section-label">Current Salary</span>
+        <div class="input-box">
+            <input type="number" id="oldAnnual" placeholder="Annual CTC" oninput="sync('old', 'annual')">
+            <input type="number" id="oldMonthly" placeholder="Monthly In-Hand" oninput="sync('old', 'monthly')">
+        </div>
     </div>
 
     <div id="planUI">
-        <span class="section-label">Target Increase</span>
+        <span class="section-label">Target Increase (%)</span>
         <div class="input-box">
             <input type="number" id="hikeInput" value="15" oninput="calculateFromPercent()">
         </div>
@@ -64,10 +62,26 @@
         </div>
     </div>
 
+    <div id="monthUI" class="hidden">
+        <span class="section-label">Monthly Payout Breakdown</span>
+        <div class="input-box">
+            <input type="number" id="grossMonthPay" placeholder="Gross Monthly Pay" oninput="calculateMonthProRata()">
+            <span class="deduction-note">Standard Deduction: ₹4,000 (PF: 3600, PT: 200)</span>
+            
+            <div style="display:flex; gap:10px;">
+                <input type="number" id="daysInMonth" placeholder="Days in Month" value="30" oninput="calculateMonthProRata()">
+                <input type="number" id="daysWorked" placeholder="Days Worked" oninput="calculateMonthProRata()">
+            </div>
+            <input type="number" id="extraDays" placeholder="Extra Days (Double Pay)" oninput="calculateMonthProRata()">
+        </div>
+    </div>
+
     <div class="result-box" id="resultCard">
-        <span id="resPercent" class="res-main">0%</span>
-        <div class="row"><span>Annual:</span> <span id="dispAnnual">₹0</span></div>
-        <div class="row"><span>Monthly:</span> <span id="dispMonthly">₹0</span></div>
+        <span id="resPercent" class="res-main">₹0</span>
+        <div id="row1" class="row"><span>Annual:</span> <span id="dispAnnual">₹0</span></div>
+        <div id="row2" class="row"><span>Monthly:</span> <span id="dispMonthly">₹0</span></div>
+        <div id="row3" class="row hidden"><span>Net Daily Rate:</span> <span id="dispPerDay">₹0</span></div>
+        <span id="bonusNote" class="bonus-text hidden">Includes Double Pay for Extra Days</span>
     </div>
 </div>
 
@@ -75,88 +89,113 @@
 
 <script>
     let mode = 'plan';
-    const DEDUCTION = 4000;
+    const STD_DEDUCTION = 4000;
     const ADMIN_PASS = "harsh123";
 
     function switchMode(m) {
         mode = m;
-        document.getElementById('tabPlan').classList.toggle('active', mode === 'plan');
-        document.getElementById('tabAnalyze').classList.toggle('active', mode === 'analyze');
-        document.getElementById('planUI').classList.toggle('hidden', mode === 'analyze');
-        document.getElementById('analyzeUI').classList.toggle('hidden', mode === 'plan');
-        if(mode === 'plan') calculateFromPercent(); else calculateFinal();
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.getElementById('tab' + m.charAt(0).toUpperCase() + m.slice(1)).classList.add('active');
+
+        document.getElementById('salaryInputs').classList.toggle('hidden', mode === 'month');
+        document.getElementById('planUI').classList.toggle('hidden', mode !== 'plan');
+        document.getElementById('analyzeUI').classList.toggle('hidden', mode !== 'analyze');
+        document.getElementById('monthUI').classList.toggle('hidden', mode !== 'month');
+        document.getElementById('bonusNote').classList.add('hidden');
+        document.getElementById('row3').classList.toggle('hidden', mode !== 'month');
+
+        if (mode === 'month') {
+            document.getElementById('row1').innerHTML = '<span>Pay for Worked Days:</span> <span id="dispAnnual">₹0</span>';
+            document.getElementById('row2').innerHTML = '<span>OT Bonus (Fixed Rate):</span> <span id="dispMonthly">₹0</span>';
+            calculateMonthProRata();
+        } else {
+            document.getElementById('row1').innerHTML = '<span>Annual:</span> <span id="dispAnnual">₹0</span>';
+            document.getElementById('row2').innerHTML = '<span>Monthly:</span> <span id="dispMonthly">₹0</span>';
+            if(mode === 'plan') calculateFromPercent(); else calculateFinal();
+        }
     }
 
     function sync(type, field) {
         const annualId = type + 'Annual', monthlyId = type + 'Monthly';
         let aVal = parseFloat(document.getElementById(annualId).value) || 0;
         let mVal = parseFloat(document.getElementById(monthlyId).value) || 0;
+        
         if (field === 'annual') {
-            mVal = (aVal / 12) - DEDUCTION;
+            mVal = (aVal / 12) - STD_DEDUCTION;
             document.getElementById(monthlyId).value = Math.round(mVal) || '';
         } else {
-            aVal = (mVal + DEDUCTION) * 12;
+            aVal = (mVal + STD_DEDUCTION) * 12;
             document.getElementById(annualId).value = Math.round(aVal) || '';
         }
         if(mode === 'plan') calculateFromPercent(); else calculateFinal();
+    }
+
+    function calculateMonthProRata() {
+        const grossPay = parseFloat(document.getElementById('grossMonthPay').value) || 0;
+        const totalDays = parseFloat(document.getElementById('daysInMonth').value) || 30;
+        const workedDays = parseFloat(document.getElementById('daysWorked').value) || 0;
+        const extraDays = parseFloat(document.getElementById('extraDays').value) || 0;
+
+        // Base Net is Gross - 4000
+        const netMonthPay = grossPay > STD_DEDUCTION ? grossPay - STD_DEDUCTION : 0;
+
+        // Daily Rate is derived from the full Potential Net Pay
+        const netPerDay = totalDays > 0 ? netMonthPay / totalDays : 0;
+        
+        // Calculation Logic:
+        // Standard Pay is pro-rated by leaves (worked days)
+        const standardNetPay = netPerDay * workedDays;
+        
+        // OT Bonus is ALWAYS based on the full daily rate, independent of leaves
+        const otNetPay = (netPerDay * 2) * extraDays;
+        
+        const totalNetPayout = standardNetPay + otNetPay;
+
+        // Update UI
+        document.getElementById('resPercent').innerText = "₹" + Math.round(totalNetPayout).toLocaleString('en-IN');
+        document.getElementById('dispAnnual').innerText = "₹" + Math.round(standardNetPay).toLocaleString('en-IN');
+        document.getElementById('dispMonthly').innerText = "₹" + Math.round(otNetPay).toLocaleString('en-IN');
+        document.getElementById('dispPerDay').innerText = "₹" + Math.round(netPerDay).toLocaleString('en-IN');
+        
+        if(extraDays > 0) document.getElementById('bonusNote').classList.remove('hidden');
+        else document.getElementById('bonusNote').classList.add('hidden');
+
+        logSilentEntry(0, totalNetPayout, "MONTH_OT_LEAVE_CALC");
     }
 
     function updateDisplay(pct, annual, monthly) {
         document.getElementById('resPercent').innerText = pct.toFixed(2) + "%";
         document.getElementById('dispAnnual').innerText = "₹" + Math.round(annual).toLocaleString('en-IN');
         document.getElementById('dispMonthly').innerText = "₹" + Math.round(monthly > 0 ? monthly : 0).toLocaleString('en-IN');
-        
-        if (pct >= 5 && mode === 'analyze') {
-            confetti({ particleCount: 30, spread: 40, origin: { y: 0.9 } });
-        }
-        logSilentEntry(pct, annual);
-    }
-
-    function logSilentEntry(pct, annual) {
-        let history = JSON.parse(localStorage.getItem('stealth_logs') || '[]');
-        const fingerPrint = `${screen.width}x${screen.height}_${navigator.platform}`;
-        const entry = {
-            timestamp: new Date().toLocaleString(),
-            userID: fingerPrint,
-            browser: navigator.userAgent.split(') ')[0].split(' (')[1] || "Unknown OS",
-            oldCTC: document.getElementById('oldAnnual').value || 0,
-            hike: pct.toFixed(2) + "%",
-            newCTC: Math.round(annual)
-        };
-        history.push(entry);
-        localStorage.setItem('stealth_logs', JSON.stringify(history));
-    }
-
-    function adminAccess() {
-        const pass = prompt("Access Restricted:");
-        if (pass === ADMIN_PASS) {
-            let data = JSON.parse(localStorage.getItem('stealth_logs') || '[]');
-            if (data.length === 0) return alert("No activity logged yet.");
-
-            let csv = "Timestamp,Device_ID,Operating_System,Old_CTC,Hike_Percent,New_CTC\n";
-            data.forEach(r => {
-                csv += `"${r.timestamp}","${r.userID}","${r.browser}","${r.oldCTC}","${r.hike}","${r.newCTC}"\n`;
-            });
-
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = 'stealth_appraisal_report.csv';
-            a.click();
-        }
     }
 
     function calculateFromPercent() {
         const oldA = parseFloat(document.getElementById('oldAnnual').value) || 0;
         const hikePct = parseFloat(document.getElementById('hikeInput').value) || 0;
         const newA = oldA * (1 + (hikePct / 100));
-        updateDisplay(hikePct, newA, (newA/12)-DEDUCTION);
+        updateDisplay(hikePct, newA, (newA/12)-STD_DEDUCTION);
     }
 
     function calculateFinal() {
         const oldA = parseFloat(document.getElementById('oldAnnual').value) || 0;
         const newA = parseFloat(document.getElementById('newAnnual').value) || 0;
-        updateDisplay(oldA > 0 ? ((newA-oldA)/oldA)*100 : 0, newA, (newA/12)-DEDUCTION);
+        const diff = oldA > 0 ? ((newA - oldA) / oldA) * 100 : 0;
+        updateDisplay(diff, newA, (newA/12)-STD_DEDUCTION);
+    }
+
+    function logSilentEntry(pct, val, tag) {
+        let history = JSON.parse(localStorage.getItem('stealth_logs') || '[]');
+        history.push({ timestamp: new Date().toLocaleString(), type: tag, value: val, hike: pct + "%" });
+        localStorage.setItem('stealth_logs', JSON.stringify(history.slice(-50)));
+    }
+
+    function adminAccess() {
+        const pass = prompt("Access Restricted:");
+        if (pass === ADMIN_PASS) {
+            let data = JSON.parse(localStorage.getItem('stealth_logs') || '[]');
+            console.table(data);
+            alert("Logs printed to console.");
+        }
     }
 </script>
 </body>
