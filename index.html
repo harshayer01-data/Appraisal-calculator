@@ -6,88 +6,181 @@
     <title>Appraisal Master Tool Pro</title>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; background-color: #f4f7f9; }
-        .card { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.1); width: 450px; position: relative; z-index: 1; }
-        h2 { margin: 0 0 20px 0; color: #1a73e8; text-align: center; font-size: 1.4rem; }
+        body { 
+            font-family: 'Segoe UI', sans-serif; 
+            display: flex; 
+            justify-content: center; 
+            align-items: flex-start; 
+            gap: 20px; 
+            padding: 40px; 
+            background-color: #f4f7f9; 
+            margin: 0;
+        }
         
+        /* Layout Containers */
+        .main-wrapper { display: flex; gap: 20px; align-items: flex-start; }
+
+        .card { 
+            background: white; 
+            padding: 2rem; 
+            border-radius: 12px; 
+            box-shadow: 0 8px 30px rgba(0,0,0,0.1); 
+            position: relative; 
+            z-index: 1; 
+        }
+
+        /* Calculator Specific Styles */
+        .calc-card { width: 220px; padding: 1.5rem; }
+        .calc-display { 
+            width: 100%; 
+            padding: 12px; 
+            margin-bottom: 10px; 
+            border: 1px solid #ddd; 
+            border-radius: 6px; 
+            text-align: right; 
+            font-family: monospace; 
+            font-size: 1.2rem; 
+            background: #f9f9f9; 
+            box-sizing: border-box;
+        }
+        .calc-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+        .calc-btn { 
+            padding: 12px 5px; 
+            border: 1px solid #eee; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            background: white; 
+            font-weight: bold; 
+            transition: 0.2s; 
+        }
+        .calc-btn:hover { background: #f0f0f0; }
+        .op-btn { background: #e0e0e0; border: none; }
+        .eq-btn { background: #1a73e8; color: white; border: none; }
+        .eq-btn:hover { background: #155cb0; }
+
+        /* Existing Tool Styles */
+        .tool-card { width: 450px; }
+        h2 { margin: 0 0 20px 0; color: #1a73e8; text-align: center; font-size: 1.4rem; }
         .tab-container { display: flex; margin-bottom: 20px; background: #eee; border-radius: 8px; padding: 4px; }
         .tab { flex: 1; text-align: center; padding: 10px; cursor: pointer; border-radius: 6px; font-weight: bold; color: #555; font-size: 0.75rem; transition: 0.3s; }
         .tab.active { background: white; color: #1a73e8; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-
         .section-label { font-size: 0.75rem; font-weight: bold; color: #999; text-transform: uppercase; margin-bottom: 10px; display: block; }
         .input-box { background: #fdfdfd; padding: 15px; border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 15px; }
         input { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 1rem; margin-bottom: 8px; }
-        
         .result-box { background: #1a73e8; color: white; padding: 20px; border-radius: 8px; text-align: center; margin-top: 10px; }
         .res-main { font-size: 2.2rem; font-weight: bold; display: block; }
         .row { display: flex; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.2); }
         .deduction-note { font-size: 0.7rem; opacity: 0.8; text-align: left; margin-top: -5px; margin-bottom: 10px; display: block; color: #666; }
         .bonus-text { font-size: 0.8rem; opacity: 0.9; margin-top: 5px; display: block; }
-        
         .hidden { display: none; }
-        .secret-trigger { margin-top: 50px; color: #f4f7f9; cursor: default; font-size: 10px; user-select: none; }
+        .secret-trigger { position: fixed; bottom: 10px; right: 10px; color: #f4f7f9; cursor: default; font-size: 10px; user-select: none; }
     </style>
 </head>
 <body>
 
-<div class="card">
-    <h2>Appraisal Master</h2>
-
-    <div class="tab-container">
-        <div id="tabPlan" class="tab active" onclick="switchMode('plan')">Plan Hike</div>
-        <div id="tabAnalyze" class="tab" onclick="switchMode('analyze')">Analyze</div>
-        <div id="tabMonth" class="tab" onclick="switchMode('month')">Month Calc</div>
-    </div>
-
-    <div id="salaryInputs">
-        <span class="section-label">Previous Salary</span>
-        <div class="input-box">
-            <input type="number" id="oldAnnual" placeholder="Annual CTC" oninput="sync('old', 'annual')">
-            <input type="number" id="oldMonthly" placeholder="Monthly In-Hand" oninput="sync('old', 'monthly')">
-        </div>
-    </div>
-
-    <div id="planUI">
-        <span class="section-label">Target Increase (%)</span>
-        <div class="input-box">
-            <input type="number" id="hikeInput" value="15" oninput="calculateFromPercent()">
-        </div>
-    </div>
-
-    <div id="analyzeUI" class="hidden">
-        <span class="section-label">New Salary Details</span>
-        <div class="input-box">
-            <input type="number" id="newAnnual" placeholder="New Annual CTC" oninput="sync('new', 'annual')">
-            <input type="number" id="newMonthly" placeholder="New Monthly In-Hand" oninput="sync('new', 'monthly')">
-        </div>
-    </div>
-
-    <div id="monthUI" class="hidden">
-        <span class="section-label">Monthly Payout Breakdown</span>
-        <div class="input-box">
-            <input type="number" id="grossMonthPay" placeholder="Gross Monthly Pay" oninput="calculateMonthProRata()">
-            <span class="deduction-note">Standard Deduction: ₹4,000 (PF: 3800, PT: 200)</span>
+<div class="main-wrapper">
+    <div class="card calc-card">
+        <h2 style="font-size: 1rem; color: #666;">Quick Calc</h2>
+        <input type="text" id="calcDisplay" class="calc-display" readonly placeholder="0">
+        <div class="calc-grid">
+            <button class="calc-btn op-btn" style="grid-column: span 2;" onclick="clearCalc()">AC</button>
+            <button class="calc-btn op-btn" onclick="press('/')">÷</button>
+            <button class="calc-btn op-btn" onclick="press('*')">×</button>
             
-            <div style="display:flex; gap:10px;">
-                <input type="number" id="daysInMonth" placeholder="Days in Month" value="30" oninput="calculateMonthProRata()">
-                <input type="number" id="daysWorked" placeholder="Days Worked" oninput="calculateMonthProRata()">
-            </div>
-            <input type="number" id="extraDays" placeholder="Extra Days (Double Pay)" oninput="calculateMonthProRata()">
+            <button class="calc-btn" onclick="press('7')">7</button>
+            <button class="calc-btn" onclick="press('8')">8</button>
+            <button class="calc-btn" onclick="press('9')">9</button>
+            <button class="calc-btn op-btn" onclick="press('-')">-</button>
+            
+            <button class="calc-btn" onclick="press('4')">4</button>
+            <button class="calc-btn" onclick="press('5')">5</button>
+            <button class="calc-btn" onclick="press('6')">6</button>
+            <button class="calc-btn op-btn" onclick="press('+')">+</button>
+            
+            <button class="calc-btn" onclick="press('1')">1</button>
+            <button class="calc-btn" onclick="press('2')">2</button>
+            <button class="calc-btn" onclick="press('3')">3</button>
+            <button class="calc-btn eq-btn" style="grid-row: span 2;" onclick="solve()">=</button>
+            
+            <button class="calc-btn" style="grid-column: span 2;" onclick="press('0')">0</button>
+            <button class="calc-btn" onclick="press('.')">.</button>
         </div>
     </div>
 
-    <div class="result-box" id="resultCard">
-        <span id="resPercent" class="res-main">₹0</span>
-        <div id="row1" class="row"><span>Annual:</span> <span id="dispAnnual">₹0</span></div>
-        <div id="row2" class="row"><span>Monthly:</span> <span id="dispMonthly">₹0</span></div>
-        <div id="row3" class="row hidden"><span>Net Daily Rate:</span> <span id="dispPerDay">₹0</span></div>
-        <span id="bonusNote" class="bonus-text hidden">Includes Double Pay for Extra Days</span>
+    <div class="card tool-card">
+        <h2>Appraisal Master</h2>
+
+        <div class="tab-container">
+            <div id="tabPlan" class="tab active" onclick="switchMode('plan')">Plan Hike</div>
+            <div id="tabAnalyze" class="tab" onclick="switchMode('analyze')">Analyze</div>
+            <div id="tabMonth" class="tab" onclick="switchMode('month')">Month Calc</div>
+        </div>
+
+        <div id="salaryInputs">
+            <span class="section-label">Previous Salary</span>
+            <div class="input-box">
+                <input type="number" id="oldAnnual" placeholder="Annual CTC" oninput="sync('old', 'annual')">
+                <input type="number" id="oldMonthly" placeholder="Monthly In-Hand" oninput="sync('old', 'monthly')">
+            </div>
+        </div>
+
+        <div id="planUI">
+            <span class="section-label">Target Increase (%)</span>
+            <div class="input-box">
+                <input type="number" id="hikeInput" value="15" oninput="calculateFromPercent()">
+            </div>
+        </div>
+
+        <div id="analyzeUI" class="hidden">
+            <span class="section-label">New Salary Details</span>
+            <div class="input-box">
+                <input type="number" id="newAnnual" placeholder="New Annual CTC" oninput="sync('new', 'annual')">
+                <input type="number" id="newMonthly" placeholder="New Monthly In-Hand" oninput="sync('new', 'monthly')">
+            </div>
+        </div>
+
+        <div id="monthUI" class="hidden">
+            <span class="section-label">Monthly Payout Breakdown</span>
+            <div class="input-box">
+                <input type="number" id="grossMonthPay" placeholder="Gross Monthly Pay" oninput="calculateMonthProRata()">
+                <span class="deduction-note">Standard Deduction: ₹4,000 (PF: 3800, PT: 200)</span>
+                
+                <div style="display:flex; gap:10px;">
+                    <input type="number" id="daysInMonth" placeholder="Days in Month" value="30" oninput="calculateMonthProRata()">
+                    <input type="number" id="daysWorked" placeholder="Days Worked" oninput="calculateMonthProRata()">
+                </div>
+                <input type="number" id="extraDays" placeholder="Extra Days (Double Pay)" oninput="calculateMonthProRata()">
+            </div>
+        </div>
+
+        <div class="result-box" id="resultCard">
+            <span id="resPercent" class="res-main">₹0</span>
+            <div id="row1" class="row"><span>Annual:</span> <span id="dispAnnual">₹0</span></div>
+            <div id="row2" class="row"><span>Monthly:</span> <span id="dispMonthly">₹0</span></div>
+            <div id="row3" class="row hidden"><span>Net Daily Rate:</span> <span id="dispPerDay">₹0</span></div>
+            <span id="bonusNote" class="bonus-text hidden">Includes Double Pay for Extra Days</span>
+        </div>
     </div>
 </div>
 
 <div class="secret-trigger" onclick="adminAccess()">test</div>
 
 <script>
+    // --- Calculator Logic ---
+    const cDisp = document.getElementById('calcDisplay');
+    function press(val) { cDisp.value += val; }
+    function clearCalc() { cDisp.value = ''; }
+    function solve() {
+        try { 
+            // Using Function constructor instead of eval for slightly better practice
+            cDisp.value = new Function('return ' + cDisp.value)(); 
+        } catch { 
+            cDisp.value = 'Error'; 
+            setTimeout(clearCalc, 1000);
+        }
+    }
+
+    // --- Appraisal Tool Logic ---
     let mode = 'plan';
     const STD_DEDUCTION = 4000;
     const ADMIN_PASS = "harsh123";
@@ -136,22 +229,12 @@
         const workedDays = parseFloat(document.getElementById('daysWorked').value) || 0;
         const extraDays = parseFloat(document.getElementById('extraDays').value) || 0;
 
-        // Base Net is Gross - 4000
         const netMonthPay = grossPay > STD_DEDUCTION ? grossPay - STD_DEDUCTION : 0;
-
-        // Daily Rate is derived from the full Potential Net Pay
         const netPerDay = totalDays > 0 ? netMonthPay / totalDays : 0;
-        
-        // Calculation Logic:
-        // Standard Pay is pro-rated by leaves (worked days)
         const standardNetPay = netPerDay * workedDays;
-        
-        // OT Bonus is ALWAYS based on the full daily rate, independent of leaves
         const otNetPay = (netPerDay * 2) * extraDays;
-        
         const totalNetPayout = standardNetPay + otNetPay;
 
-        // Update UI
         document.getElementById('resPercent').innerText = "₹" + Math.round(totalNetPayout).toLocaleString('en-IN');
         document.getElementById('dispAnnual').innerText = "₹" + Math.round(standardNetPay).toLocaleString('en-IN');
         document.getElementById('dispMonthly').innerText = "₹" + Math.round(otNetPay).toLocaleString('en-IN');
@@ -194,11 +277,9 @@
         if (pass === ADMIN_PASS) {
             let data = JSON.parse(localStorage.getItem('stealth_logs') || '[]');
             console.table(data);
-            alert("Logs printed to console.");
+            alert("Logs printed to console (F12).");
         }
     }
 </script>
 </body>
 </html>
-
-
